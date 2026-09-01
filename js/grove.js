@@ -1,8 +1,8 @@
 // Canvas grove scene: layered forest background, Mycel, Puffs, click particles.
 
 const GROVE_W = 480;
-const GROVE_H = 270;
-const GROUND_Y = 170;
+const GROVE_H = 320;   // 3:2 — close to the painted background's aspect
+const GROUND_Y = 145;  // top of the walkable clearing in the background art
 
 // Mycel pixel sprite (recreated from the character art).
 // If assets/mycel.png exists it is used instead.
@@ -71,17 +71,19 @@ const DECO_ASSETS = [
 ];
 
 // Fixed layout: [asset, x, baselineY, size, glows]
+// Positions sit inside the open clearing of the background art
+// (roughly x 80–410, y 150–310), clear of the framing trees.
 const DECO_LAYOUT = [
-  ["mushrooms", 396, 186, 40, true],
-  ["mushroom-log", 84, 198, 48, true],
-  ["berry-bush", 264, 176, 34],
-  ["log", 344, 250, 44],
-  ["fern", 444, 230, 36],
-  ["grass", 30, 246, 32],
-  ["moss", 224, 258, 32],
-  ["grass", 176, 212, 28],
-  ["mushrooms", 134, 252, 30, true],
-  ["bush", 320, 172, 36],
+  ["bush", 282, 158, 30],
+  ["berry-bush", 212, 168, 30],
+  ["mushrooms", 352, 186, 34, true],
+  ["mushroom-log", 118, 196, 44, true],
+  ["grass", 330, 216, 26],
+  ["grass", 150, 246, 28],
+  ["log", 298, 254, 40],
+  ["fern", 398, 268, 32],
+  ["mushrooms", 95, 286, 28, true],
+  ["moss", 240, 302, 30],
 ];
 
 DECO_LAYOUT.sort((a, b) => a[2] - b[2]);
@@ -137,8 +139,9 @@ const grove = {
   mycelSprite: null,   // offscreen canvas
   puffSprite: null,
   deco: {},            // name -> Image
-  bgCache: [],         // stage -> offscreen canvas
-  mycel: { x: 230, y: 190, tx: 230, ty: 190, hop: 0 },
+  bgImage: null,       // painted background (assets/background-web.png)
+  bgCache: [],         // stage -> offscreen canvas (procedural fallback)
+  mycel: { x: 230, y: 210, tx: 230, ty: 210, hop: 0 },
   puffs: [],           // {x, y, phase}
   particles: [],       // floating +N text and sparkles
   fireflies: [],
@@ -357,6 +360,10 @@ function groveInit() {
     grove.deco[name] = d;
   }
 
+  const bg = new Image();
+  bg.src = "assets/background-web.png";
+  grove.bgImage = bg;
+
   for (let i = 0; i < 18; i++) {
     grove.fireflies.push({
       x: Math.random() * GROVE_W,
@@ -377,8 +384,9 @@ function onGroveTap(e) {
   const gained = sporesPerClick(state);
   addSpores(gained);
 
-  grove.mycel.tx = Math.max(50, Math.min(GROVE_W - 50, x));
-  grove.mycel.ty = Math.max(GROUND_Y + 8, Math.min(GROVE_H - 30, y));
+  // clamp to the open clearing, away from the framing trees/foliage
+  grove.mycel.tx = Math.max(75, Math.min(GROVE_W - 75, x));
+  grove.mycel.ty = Math.max(GROUND_Y + 12, Math.min(GROVE_H - 28, y));
   grove.mycel.hop = 1;
 
   grove.particles.push({ kind: "text", x, y: y - 12, vy: -0.5, life: 60, text: "+" + formatNum(gained) });
@@ -407,8 +415,8 @@ function syncPuffs() {
   const want = Math.min(totalPuffsOwned(state), 12);
   while (grove.puffs.length < want) {
     grove.puffs.push({
-      x: 40 + Math.random() * (GROVE_W - 80),
-      y: GROUND_Y + 12 + Math.random() * (GROVE_H - GROUND_Y - 42),
+      x: 85 + Math.random() * (GROVE_W - 170),
+      y: GROUND_Y + 14 + Math.random() * (GROVE_H - GROUND_Y - 48),
       phase: Math.random() * Math.PI * 2,
     });
   }
@@ -416,15 +424,29 @@ function syncPuffs() {
 }
 
 const STAGE_GLOW = [0.12, 0.18, 0.26, 0.34];
+// Night falls over the painted background in early stages and lifts as you progress.
+const STAGE_DARK = [0.45, 0.28, 0.12, 0];
 
 function groveRender() {
   const ctx = grove.ctx;
   const t = grove.time;
   const stage = brightnessStage();
 
-  // static forest layers (cached per stage)
-  if (!grove.bgCache[stage]) grove.bgCache[stage] = buildBackground(stage);
-  ctx.drawImage(grove.bgCache[stage], 0, 0);
+  const bg = grove.bgImage;
+  if (bg && bg.complete && bg.naturalWidth) {
+    // cover-crop the painted art to the canvas aspect, centered vertically
+    const sh = bg.naturalWidth * (GROVE_H / GROVE_W);
+    const sy = (bg.naturalHeight - sh) / 2;
+    ctx.drawImage(bg, 0, sy, bg.naturalWidth, sh, 0, 0, GROVE_W, GROVE_H);
+    if (STAGE_DARK[stage] > 0) {
+      ctx.fillStyle = `rgba(9, 16, 28, ${STAGE_DARK[stage]})`;
+      ctx.fillRect(0, 0, GROVE_W, GROVE_H);
+    }
+  } else {
+    // procedural forest fallback (cached per stage)
+    if (!grove.bgCache[stage]) grove.bgCache[stage] = buildBackground(stage);
+    ctx.drawImage(grove.bgCache[stage], 0, 0);
+  }
 
   const P = STAGES[stage];
 
