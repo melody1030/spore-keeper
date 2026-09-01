@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Spore Keeper</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="app">
+    <header id="topbar">
+      <h1>Spore Keeper</h1>
+      <div id="counter">
+        <div id="spore-count">0</div>
+        <div id="spore-label">Lumen Spores</div>
+        <div id="sps">0.0 / sec</div>
+      </div>
+    </header>
+
+    <main>
+      <section id="grove-wrap">
+        <canvas id="grove"></canvas>
+        <div id="whisper" class="hidden"></div>
+      </section>
+
+      <section id="panel">
+        <h2>Grove Upgrades</h2>
+        <div id="upgrades"></div>
+        <div id="footer-actions">
+          <button id="btn-export" class="small-btn">Export Save</button>
+          <button id="btn-import" class="small-btn">Import Save</button>
+          <button id="btn-reset" class="small-btn danger">Reset</button>
+        </div>
+      </section>
+    </main>
+
+    <div id="modal-backdrop" class="hidden">
+      <div id="modal">
+        <h3 id="modal-title"></h3>
+        <p id="modal-body"></p>
+        <textarea id="modal-text" class="hidden" spellcheck="false"></textarea>
+        <div id="modal-buttons"></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/config.js"></script>
+  <script src="js/state.js"></script>
+  <script src="js/grove.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/game.js"></script>
+</body>
+</html>
