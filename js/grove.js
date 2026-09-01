@@ -63,11 +63,37 @@ const PUFF_PIXELS = [
   "..OOOO..",
 ];
 
+// Scenery sprites from assets/ (512×512 pixel art, drawn small).
+const DECO_ASSETS = [
+  "tree", "mushrooms", "mushroom-log", "log", "fern",
+  "grass", "berry-bush", "moss", "bush", "bush-dark",
+];
+
+// Fixed layout: [asset, x, baselineY, size, glows]
+const DECO_LAYOUT = [
+  ["tree", 40, 100, 64],
+  ["tree", 292, 98, 56],
+  ["bush-dark", 130, 96, 30],
+  ["bush", 218, 98, 28],
+  ["mushrooms", 262, 122, 26, true],
+  ["mushroom-log", 58, 130, 32, true],
+  ["berry-bush", 176, 108, 22],
+  ["log", 230, 168, 30],
+  ["fern", 296, 152, 24],
+  ["grass", 22, 164, 22],
+  ["moss", 150, 172, 22],
+  ["grass", 118, 140, 18],
+  ["mushrooms", 90, 168, 20, true],
+];
+
+DECO_LAYOUT.sort((a, b) => a[2] - b[2]);
+
 const grove = {
   canvas: null,
   ctx: null,
   mycelSprite: null,   // offscreen canvas
   puffSprite: null,
+  deco: {},            // name -> Image
   mycel: { x: 150, y: 120, tx: 150, ty: 120, hop: 0 },
   puffs: [],           // {x, y, phase}
   particles: [],       // {x, y, vy, life, text} or sparkles {x, y, vx, vy, life}
@@ -105,6 +131,12 @@ function groveInit() {
   const img = new Image();
   img.onload = () => { grove.mycelSprite = img; };
   img.src = "assets/mycel.png";
+
+  for (const name of DECO_ASSETS) {
+    const d = new Image();
+    d.src = "assets/" + name + ".png";
+    grove.deco[name] = d;
+  }
 
   for (let i = 0; i < 14; i++) {
     grove.fireflies.push({
@@ -177,13 +209,13 @@ function groveRender() {
   ctx.fillStyle = STAGE_SKY[stage];
   ctx.fillRect(0, 0, GROVE_W, GROVE_H);
 
-  // distant tree silhouettes
-  ctx.fillStyle = "rgba(30, 55, 66, 0.6)";
+  // distant tree silhouettes behind everything
+  ctx.fillStyle = "rgba(30, 55, 66, 0.5)";
   for (let i = 0; i < 6; i++) {
-    const x = i * 60 - 10;
-    ctx.fillRect(x + 18, 20, 8, 80);
+    const x = i * 62 - 20;
+    ctx.fillRect(x + 18, 25, 6, 70);
     ctx.beginPath();
-    ctx.arc(x + 22, 30, 22, 0, Math.PI * 2);
+    ctx.arc(x + 21, 32, 18, 0, Math.PI * 2);
     ctx.fill();
   }
 
@@ -191,20 +223,19 @@ function groveRender() {
   ctx.fillStyle = STAGE_GROUND[stage];
   ctx.fillRect(0, 95, GROVE_W, GROVE_H - 95);
 
-  // glowing mushroom props
-  const props = [[35, 100], [280, 110], [60, 155], [250, 160], [160, 100]];
-  props.forEach(([px, py], i) => {
-    const glow = STAGE_GLOW[stage] + Math.sin(t * 0.03 + i) * 0.05;
-    ctx.fillStyle = `rgba(63, 214, 194, ${Math.max(glow, 0.05)})`;
-    ctx.beginPath();
-    ctx.arc(px, py - 4, 10, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = "#f2ead8";
-    ctx.fillRect(px - 2, py - 4, 4, 6);
-    ctx.fillStyle = "#3fd6c2";
-    ctx.fillRect(px - 5, py - 8, 10, 4);
-    ctx.fillRect(px - 3, py - 10, 6, 2);
-  });
+  // scenery sprites (sorted back-to-front by baseline)
+  for (const [name, dx, dy, size, glows] of DECO_LAYOUT) {
+    const img = grove.deco[name];
+    if (!img || !img.complete || !img.naturalWidth) continue;
+    if (glows) {
+      const glow = STAGE_GLOW[stage] + Math.sin(t * 0.03 + dx) * 0.05;
+      ctx.fillStyle = `rgba(63, 214, 194, ${Math.max(glow, 0.05)})`;
+      ctx.beginPath();
+      ctx.arc(dx, dy - size * 0.3, size * 0.55, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.drawImage(img, Math.round(dx - size / 2), Math.round(dy - size), size, size);
+  }
 
   // fireflies (more visible in brighter stages)
   const flies = 4 + stage * 3;
@@ -233,8 +264,9 @@ function groveRender() {
   const hopY = Math.sin(m.hop * Math.PI) * 10;
   const idleBob = Math.round(Math.sin(t * 0.03) * 1.5);
 
-  const sw = grove.mycelSprite.width > 64 ? 48 : grove.mycelSprite.width;
-  const sh = grove.mycelSprite.width > 64 ? 48 : grove.mycelSprite.height;
+  // The 512px character art carries transparent padding, so draw it larger.
+  const sw = grove.mycelSprite.width > 64 ? 56 : grove.mycelSprite.width;
+  const sh = grove.mycelSprite.width > 64 ? 56 : grove.mycelSprite.height;
   // soft glow under Mycel
   ctx.fillStyle = "rgba(63, 214, 194, 0.15)";
   ctx.beginPath();
